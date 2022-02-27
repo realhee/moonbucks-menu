@@ -1,5 +1,27 @@
 import { $, MESSAGE } from "./consts.js";
 
+const BASE_URL = "http://localhost:3000/api";
+
+const MenuAPI = {
+  async getAllMenuByCategory(category) {
+    const response = await fetch(`${BASE_URL}/category/${category}/menu`);
+    return response.json();
+  },
+  async createMenu(category, name) {
+    const response = await fetch(`${BASE_URL}/category/${category}/menu`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) {
+      console.error("에러가 발생했습니다.");
+      // console.log(response.error);
+    }
+  },
+};
+
 function App() {
   const $menuForm = $("#espresso-menu-form");
   const $menuList = $("#espresso-menu-list");
@@ -10,7 +32,7 @@ function App() {
   const $categoryList = document.getElementsByClassName("cafe-category-name");
   const $menuTitle = $(".mt-1");
 
-  this.init = () => {
+  this.init = async () => {
     this.menuItemInfoList = {};
     this.currentCategory = $categoryList[0].dataset.categoryName;
     const categoryArray = [...$categoryList].map(
@@ -19,15 +41,11 @@ function App() {
     categoryArray.map((item) => {
       this.menuItemInfoList[item] = [];
     });
-    initCurCategoryMenuItems();
+    this.menuItemInfoList[
+      this.currentCategory
+    ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
     initEventHandlers();
     render();
-  };
-
-  const initCurCategoryMenuItems = () => {
-    this.menuItemInfoList[this.currentCategory] = JSON.parse(getLocalStorage())
-      ? JSON.parse(getLocalStorage())
-      : [];
   };
 
   const initEventHandlers = () => {
@@ -54,43 +72,39 @@ function App() {
       }
     });
 
-    $categoryNav.addEventListener("click", (e) => {
+    $categoryNav.addEventListener("click", async (e) => {
       if (isContainedClass("cafe-category-name", e)) {
         this.currentCategory = e.target.dataset.categoryName;
         $menuTitle.innerText = `${e.target.innerText} 메뉴 관리`;
-        initCurCategoryMenuItems();
+        await fetch(`${BASE_URL}/category/${this.currentCategory}/menu`)
+          .then((response) => {
+            return response.json();
+          })
+          .then((data) => {
+            this.menuItemInfoList[this.currentCategory] = data;
+          });
         render();
       }
     });
   };
 
-  const getLocalStorage = () => {
-    return localStorage.getItem(this.currentCategory);
-  };
-
-  const setLocalStorage = () => {
-    localStorage.setItem(
-      this.currentCategory,
-      JSON.stringify(this.menuItemInfoList[this.currentCategory])
-    );
-    render();
-  };
-
   const render = () => {
     if (this.menuItemInfoList[this.currentCategory]) {
       $menuList.innerHTML = this.menuItemInfoList[this.currentCategory]
-        .map((item, index) => menuItemTemplate(item, index))
+        .map((item) => menuItemTemplate(item))
         .join("");
       updateMenuCount();
       initMenuNameInput();
     }
   };
 
-  const menuItemTemplate = (item, index) => {
-    return `<li data-id="${index}" class="menu-list-item  d-flex items-center py-2">
+  const menuItemTemplate = (item) => {
+    return `<li data-id="${
+      item.id
+    }" class="menu-list-item  d-flex items-center py-2">
               <span class="${
-                item.soldOut ? "sold-out" : ""
-              } w-100 pl-2 menu-name">${item.menuName}</span>
+                item.isSoldOut ? "sold-out" : ""
+              } w-100 pl-2 menu-name">${item.name}</span>
               <button
             type="button"
             class="bg-gray-50 text-gray-500 text-sm mr-1 menu-sold-out-button"
@@ -136,7 +150,7 @@ function App() {
     $counter.textContent = `총 ${menuCount} 개`;
   };
 
-  const addMenuItem = () => {
+  const addMenuItem = async () => {
     if (isduplicatedMenuName($menuNameInput.value)) {
       alert(MESSAGE.ALREADY_EXIST);
       initMenuNameInput();
@@ -147,13 +161,27 @@ function App() {
       initMenuNameInput();
       return;
     }
-    const menuItemInfo = {
-      menuName: $menuNameInput.value,
-      category: this.currentCategory,
-      soldOut: false,
-    };
-    this.menuItemInfoList[this.currentCategory].push(menuItemInfo);
-    setLocalStorage();
+
+    // add menu
+    await MenuAPI.createMenu(this.currentCategory, $menuNameInput.value);
+    // await fetch(`${BASE_URL}/category/${this.currentCategory}/menu`, {
+    //   method: "POST",
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //   },
+    //   body: JSON.stringify({ name: $menuNameInput.value }),
+    // })
+    //   .then((response) => {
+    //     return response.json();
+    //   })
+    //   .then((data) => {
+    //     console.log(data);
+    //   });
+
+    this.menuItemInfoList[
+      this.currentCategory
+    ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
+    render();
   };
 
   const modifyMenuItem = (e) => {
@@ -166,7 +194,7 @@ function App() {
 
     if (isduplicatedMenuName(newMenuName)) {
       alert(MESSAGE.ALREADY_EXIST);
-    } else if (newMenuName === "") {
+    } else if (newMenuName.trim() === "") {
       alert(MESSAGE.WARN_BLANK);
     } else if (newMenuName !== null) {
       this.menuItemInfoList[this.currentCategory][
