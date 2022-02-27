@@ -17,8 +17,23 @@ const MenuAPI = {
     });
     if (!response.ok) {
       console.error("에러가 발생했습니다.");
-      // console.log(response.error);
     }
+  },
+  async updateMenu(category, name, menuId) {
+    const response = await fetch(
+      `${BASE_URL}/category/${category}/menu/${menuId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      }
+    );
+    if (!response.ok) {
+      console.error("에러가 발생했습니다.");
+    }
+    return response.json();
   },
 };
 
@@ -162,29 +177,14 @@ function App() {
       return;
     }
 
-    // add menu
     await MenuAPI.createMenu(this.currentCategory, $menuNameInput.value);
-    // await fetch(`${BASE_URL}/category/${this.currentCategory}/menu`, {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //   },
-    //   body: JSON.stringify({ name: $menuNameInput.value }),
-    // })
-    //   .then((response) => {
-    //     return response.json();
-    //   })
-    //   .then((data) => {
-    //     console.log(data);
-    //   });
-
     this.menuItemInfoList[
       this.currentCategory
     ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
     render();
   };
 
-  const modifyMenuItem = (e) => {
+  const modifyMenuItem = async (e) => {
     const $listItem = e.target.closest("li");
     const $menuName = $listItem.querySelector(".menu-name");
     const newMenuName = prompt(
@@ -197,11 +197,13 @@ function App() {
     } else if (newMenuName.trim() === "") {
       alert(MESSAGE.WARN_BLANK);
     } else if (newMenuName !== null) {
-      this.menuItemInfoList[this.currentCategory][
-        $listItem.dataset.id
-      ].menuName = newMenuName;
-      setLocalStorage();
+      const menuId = $listItem.dataset.id;
+      await MenuAPI.updateMenu(this.currentCategory, newMenuName, menuId);
     }
+    this.menuItemInfoList[
+      this.currentCategory
+    ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
+    render();
   };
 
   const removeMenuItem = (e) => {
