@@ -35,6 +35,17 @@ const MenuAPI = {
     }
     return response.json();
   },
+  async toggleSoldOutMenu(category, menuId) {
+    const response = await fetch(
+      `${BASE_URL}/category/${category}/menu/${menuId}/soldout`,
+      {
+        method: "PUT",
+      }
+    );
+    if (!response.ok) {
+      console.error("에러가 발생했습니다.");
+    }
+  },
 };
 
 function App() {
@@ -74,16 +85,17 @@ function App() {
 
     $submitButton.addEventListener("click", () => addMenuItem());
 
-    $menuList.addEventListener("click", (e) => {
+    $menuList.addEventListener("click", async (e) => {
       if (isContainedClass("menu-edit-button", e)) modifyMenuItem(e);
       else if (isContainedClass("menu-remove-button", e)) removeMenuItem(e);
       else if (isContainedClass("menu-sold-out-button", e)) {
         const $listItem = e.target.closest("li");
         const menuId = $listItem.dataset.id;
-        let soldOut = this.menuItemInfoList[this.currentCategory][menuId]
-          .soldOut;
-        this.menuItemInfoList[this.currentCategory][menuId].soldOut = !soldOut;
-        setLocalStorage();
+        await MenuAPI.toggleSoldOutMenu(this.currentCategory, menuId);
+        this.menuItemInfoList[
+          this.currentCategory
+        ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
+        render();
       }
     });
 
