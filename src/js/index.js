@@ -46,6 +46,17 @@ const MenuAPI = {
       console.error("에러가 발생했습니다.");
     }
   },
+  async deleteMenu(category, menuId) {
+    const response = await fetch(
+      `${BASE_URL}/category/${category}/menu/${menuId}`,
+      {
+        method: "DELETE",
+      }
+    );
+    if (!response.ok) {
+      console.error("에러가 발생했습니다.");
+    }
+  },
 };
 
 function App() {
@@ -218,15 +229,16 @@ function App() {
     render();
   };
 
-  const removeMenuItem = (e) => {
+  const removeMenuItem = async (e) => {
     const $listItem = e.target.closest("li");
+    const menuId = $listItem.dataset.id;
     if (confirm(MESSAGE.CHECK_REMOVE)) {
-      this.menuItemInfoList[this.currentCategory].splice(
-        $listItem.dataset.id,
-        1
-      );
-      setLocalStorage();
+      await MenuAPI.deleteMenu(this.currentCategory, menuId);
     }
+    this.menuItemInfoList[
+      this.currentCategory
+    ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
+    render();
   };
 }
 
