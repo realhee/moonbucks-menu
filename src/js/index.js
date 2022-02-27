@@ -1,63 +1,5 @@
 import { $, MESSAGE } from "./consts.js";
-
-const BASE_URL = "http://localhost:3000/api";
-
-const MenuAPI = {
-  async getAllMenuByCategory(category) {
-    const response = await fetch(`${BASE_URL}/category/${category}/menu`);
-    return response.json();
-  },
-  async createMenu(category, name) {
-    const response = await fetch(`${BASE_URL}/category/${category}/menu`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name }),
-    });
-    if (!response.ok) {
-      console.error("에러가 발생했습니다.");
-    }
-  },
-  async updateMenu(category, name, menuId) {
-    const response = await fetch(
-      `${BASE_URL}/category/${category}/menu/${menuId}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name }),
-      }
-    );
-    if (!response.ok) {
-      console.error("에러가 발생했습니다.");
-    }
-    return response.json();
-  },
-  async toggleSoldOutMenu(category, menuId) {
-    const response = await fetch(
-      `${BASE_URL}/category/${category}/menu/${menuId}/soldout`,
-      {
-        method: "PUT",
-      }
-    );
-    if (!response.ok) {
-      console.error("에러가 발생했습니다.");
-    }
-  },
-  async deleteMenu(category, menuId) {
-    const response = await fetch(
-      `${BASE_URL}/category/${category}/menu/${menuId}`,
-      {
-        method: "DELETE",
-      }
-    );
-    if (!response.ok) {
-      console.error("에러가 발생했습니다.");
-    }
-  },
-};
+import { MenuAPI } from "./api/index.js";
 
 function App() {
   const $menuForm = $("#espresso-menu-form");
@@ -78,9 +20,6 @@ function App() {
     categoryArray.map((item) => {
       this.menuItemInfoList[item] = [];
     });
-    this.menuItemInfoList[
-      this.currentCategory
-    ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
     initEventHandlers();
     render();
   };
@@ -103,30 +42,23 @@ function App() {
         const $listItem = e.target.closest("li");
         const menuId = $listItem.dataset.id;
         await MenuAPI.toggleSoldOutMenu(this.currentCategory, menuId);
-        this.menuItemInfoList[
-          this.currentCategory
-        ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
         render();
       }
     });
 
-    $categoryNav.addEventListener("click", async (e) => {
+    $categoryNav.addEventListener("click", (e) => {
       if (isContainedClass("cafe-category-name", e)) {
         this.currentCategory = e.target.dataset.categoryName;
         $menuTitle.innerText = `${e.target.innerText} 메뉴 관리`;
-        await fetch(`${BASE_URL}/category/${this.currentCategory}/menu`)
-          .then((response) => {
-            return response.json();
-          })
-          .then((data) => {
-            this.menuItemInfoList[this.currentCategory] = data;
-          });
         render();
       }
     });
   };
 
-  const render = () => {
+  const render = async () => {
+    this.menuItemInfoList[
+      this.currentCategory
+    ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
     if (this.menuItemInfoList[this.currentCategory]) {
       $menuList.innerHTML = this.menuItemInfoList[this.currentCategory]
         .map((item) => menuItemTemplate(item))
@@ -176,7 +108,7 @@ function App() {
 
   const isduplicatedMenuName = (newMenuName) => {
     const duplicatedMenuItem = this.menuItemInfoList[this.currentCategory].find(
-      (item) => item.menuName === newMenuName
+      (item) => item.name === newMenuName
     );
 
     if (duplicatedMenuItem) return true;
@@ -201,31 +133,23 @@ function App() {
     }
 
     await MenuAPI.createMenu(this.currentCategory, $menuNameInput.value);
-    this.menuItemInfoList[
-      this.currentCategory
-    ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
     render();
   };
 
   const modifyMenuItem = async (e) => {
     const $listItem = e.target.closest("li");
     const $menuName = $listItem.querySelector(".menu-name");
-    const newMenuName = prompt(
-      MESSAGE.CHECK_MODIFY,
-      $menuName.textContent
-    ).trim();
+    const newMenuName = prompt(MESSAGE.CHECK_MODIFY, $menuName.textContent);
 
+    if (newMenuName === null) return;
     if (isduplicatedMenuName(newMenuName)) {
       alert(MESSAGE.ALREADY_EXIST);
     } else if (newMenuName.trim() === "") {
       alert(MESSAGE.WARN_BLANK);
-    } else if (newMenuName !== null) {
+    } else {
       const menuId = $listItem.dataset.id;
       await MenuAPI.updateMenu(this.currentCategory, newMenuName, menuId);
     }
-    this.menuItemInfoList[
-      this.currentCategory
-    ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
     render();
   };
 
@@ -235,9 +159,6 @@ function App() {
     if (confirm(MESSAGE.CHECK_REMOVE)) {
       await MenuAPI.deleteMenu(this.currentCategory, menuId);
     }
-    this.menuItemInfoList[
-      this.currentCategory
-    ] = await MenuAPI.getAllMenuByCategory(this.currentCategory);
     render();
   };
 }
